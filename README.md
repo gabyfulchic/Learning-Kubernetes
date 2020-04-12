@@ -139,17 +139,41 @@ Par exemple au format YAML (le plus répandu) :
     - [Kind](https://github.com/kubernetes-sigs/kind) > Run local k8s cluster using docker container as nodes.  
     - [K3d](https://github.com/rancher/k3d) > Run local single-node k3s cluster using docker container as nodes.  
   - Installations orientées **production et multi environnement** :  
-    - Installations hébergées de cluster multi-noeuds : (cluster managé par le service provider)
+    - **Installations hébergées** de cluster multi-noeuds : (cluster managé par le service provider)
       - EKS > Amazon Elastic Kubernetes Service  
       - GKE > Google Kubernetes Engine
       - AKS > Azure Kubernetes Service
-    - Installations on-premise de cluster multi-noeuds : (cluster managé par la team OPS)
+    - **Installations on-premise** de cluster multi-noeuds : (cluster managé par la team OPS)
       - [Kubeadm](https://github.com/kubernetes/kubeadm) > Ligne de commande facilitant la création de noeuds Kubernetes et donc de cluster Kubernetes.  
       - [Kubespray](https://github.com/kubernetes-sigs/kubespray) > Ensemble de configurations Ansible permettant de provisionner un cluster Kubernetes.  
       - [RKE](https://rancher.com/docs/rke/latest/en/) > Rancher Kubernetes Engine. Permet à l'aide d'un installer de créer un cluster Kubernetes puis de le manager depuis la Rancher UI.  
       - Docker enterprise Edition  
  
-## La Pratique ?  
+## La Pratique sur un cluster locale  
+
+Pour pratiquer et manipuler un cluster Kubernetes localement, contrairement au cours sur LinkedIn Learning, j'ai choisi  
+d'utiliser micro.k8s pour générer le cluster et le manager. Tout simplement pour des raisons d'affinité et de pratique.  
+(J'ai déjà utilisé auparavant micro.k8s pour du développement autour de Kubernetes.)  
+En plus de ça, microk8s est utilisable plus rapidement que minikube. Avec microk8s, la commande cliente ne sera pas  
+`kubectl` **mais** `microk8s.kubectl`.  
+
+Microk8s met à disposition un cluster à 1 seul Noeud sous Linux très rapidement et en 1 commande :  
+- `sudo snap install microk8s --classic` > Installe microk8s et le cluster directement.  
+- `sudo microk8s status --wait-ready` > Affiche l'avancée du lancement du cluster.   
+
+Pour jouer et manipuler microk8s **vous allez vite avoir besoin d'alias**, sinon vous allez devenir fou.  
+Voici 2 alias dont que je me sers tout le temps et que j'ai posé dans mon `~/.zshrc`.  
+![microk8s-alias](assets/microk8s-alias.png)
+
+Vous pouvez **lancer, stopper et afficher l'état de votre cluster** très rapidement.  
+![manage-microk8s-cluster](assets/manage-microk8s-cluster.png)  
+
+Ensuite vous pouvez évidemment **afficher les ressources kubernetes** présentes sur votre cluster.  
+![display-mk8s-rsc](assets/display-microk8s-rsc.png)
+
+Microk8s permet aussi de **lancer plusieurs services** avec 1 simple ligne de commande.  
+Ici le kube-dashboard & le kube-dns.  
+![enable-dns-dash](assets/microk8s-enable-dns-dashboard.png)
 
 
 
@@ -217,7 +241,7 @@ Ajouter un nouveau context depuis un autre fichier :
 `scp root@ip_master:/etc/kubernetes/admin.conf ~/.kube/`  
 `export KUBECONFIG=~/.kube/config:~/.kube/admin.conf`
 
-## Pour les motivés et ceux qui veulent aller plus loins dans Kubernetes 
+## Pour les motivés et ceux qui veulent aller plus loin dans Kubernetes 
 
 Voici un repository github listant tous les projets autour de Kubernetes qui peuvent nous intéresser. Ils sont  
 rangés par types de solution et par domaines. Vous y trouverez des liens pour des soltutions de **monitoring**,  
