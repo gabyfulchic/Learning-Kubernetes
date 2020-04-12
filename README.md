@@ -149,7 +149,7 @@ Par exemple au format YAML (le plus répandu) :
       - [RKE](https://rancher.com/docs/rke/latest/en/) > Rancher Kubernetes Engine. Permet à l'aide d'un installer de créer un cluster Kubernetes puis de le manager depuis la Rancher UI.  
       - Docker enterprise Edition  
  
-## La Pratique sur un cluster locale  
+## La Pratique avec un cluster single-node locale 
 
 Pour pratiquer et manipuler un cluster Kubernetes localement, contrairement au cours sur LinkedIn Learning, j'ai choisi  
 d'utiliser micro.k8s pour générer le cluster et le manager. Tout simplement pour des raisons d'affinité et de pratique.  
@@ -175,11 +175,80 @@ Microk8s permet aussi de **lancer plusieurs services** avec 1 simple ligne de co
 Ici le kube-dashboard & le kube-dns.  
 ![enable-dns-dash](assets/microk8s-enable-dns-dashboard.png)
 
+## La pratique avec un cluster on-premise
 
+Avant de passer aux actions spécifiques suivant le type de Noeud, on va d'abord effectuer les actions nécessaires  
+pour les 2 types de Noeud. En terme de pré-recquis il vous faudra aussi connaître la version de votre os, votre version de docker et il vous faudra renseigner les différents noeuds dans le `/etc/hosts` des serveurs.  
 
-## L'essentiel de Kubernetes
+Ensuite on devra :  
+- Désactiver SELINUX
+- Ajouter le repository Kubernetes (pour apt/yum par exemple) 
+- Positionner la configuration du bridge (/etc/sysctl.d/k8s.conf)
+- Désactiver la Swap au niveau des serveurs
+  
+### Pré-requis d'un Noeud Master  
+  
+Ensuite il faudra mettre à jour les iptables du serveur afin d'ouvrir les ports nécessaires au bon fonctionnement  
+des différents composants d'un Noeud master.  
+```
+- 179 : Port utilisé par le BGP pour calico (notre CNI).  
+- 443 : Port utilisé par l'HTTPS.  
+- 5473 : Port utilisé pour calico (notre CNI).    
+- 6443 : Port utilisé par l'api Kubernetes.  
+- 2379 : Etcd client communication.  
+- 2380 : Etcd server to server communication.  
+- 10250 : Port utilisé par Kubelet.  
+- 10251 : Port utilisé par le Kube-scheduler.  
+- 10252 : Port utilisé par le Kube-controller-manager.  
+```
+  
+Pour ajouter ces iptables, taper ces commandes :  
+```bash
+firewall-cmd --permanent --add-port={6443,2379,2380,10250,10251,10252,179,5473,443}/tcp  
+firewall-cmd --reload  
+```  
+  
+### Pré-requis d'un Noeud Worker  
 
-On install kubeadm, on `kubeadm config images pull` pour récupérer les images
+En terme de pré-recquis il vous faudra connaître la version de votre os, votre version de docker et il vous  
+faudra renseigner les différents noeuds dans le `/etc/hosts` du serveur. 
+
+Ensuite il faudra mettre à jour les iptables du serveur afin d'ouvrir les ports nécessaires au bon fonctionnement  
+des différents composants d'un Noeud de type Worker.  
+```
+- 179 : Port utilisé par le BGP pour calico (notre CNI).  
+- 443 : Port utilisé par l'HTTPS.  
+- 5473 : Port utilisé pour calico (notre CNI).    
+- 10250 : Port utilisé par Kubelet.  
+- 30000 : Port de départ de la plage disponible pour les Service de type Node Port.  
+- 32767 : Port de fin de la plage disponible pour les Service de type Node Port.  
+```
+  
+Pour ajouter ces iptables, taper ces commandes :  
+```bash
+firewall-cmd --permanent --add-port={10250,30000-32767,179,5473,443}/tcp  
+firewall-cmd --reload  
+```  
+
+### Ajouter le serveur en tant que Noeud Kubernetes  
+
+#### Noeud Master  
+  
+Kubeadm est une ligne de commande qui permet à l'aide des arguments `init` & `join` de créer rapidement et  
+simplement des clusters Kubernetes.  
+  
+Pour installer `kubeadm` sous Ubuntu/Debian veuillez taper les commandes suivantes :  
+- `apt-get update && apt-get install -y apt-transport-https curl`
+- `curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -`
+-
+```bash
+cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+```
+- `apt-get update && apt-get install -y kubeadm`
+
+Puis `kubeadm config images pull` pour récupérer les images
 docker servant à provisionner dans pods les composants faisant fonctionner kubernetes.
 
 - l'apiserver
@@ -215,7 +284,7 @@ style : (sur le worker évidemment)
 
 On verifie avec `kubectl get no`  
 
-## Context
+## Le Contexte Kubernetes
 
 Le Context défini le cluster kubernetes cible, l'utilisateur pour se connecter au cluster avec  
 ses credentials et son namespace par défaut. 
