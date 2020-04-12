@@ -87,11 +87,11 @@ Les composants des workers :
 ## Les ressources Kubernetes  
   
 Il existe plusieurs catégories de ressources. Celles qui vont gérer les applications, celles qui vont gérer  
-la partie Load Balancing (), celles qui vont configurer les applications, celles qui vont gérer la partie  
+la partie Load Balancing, celles qui vont configurer les applications, celles qui vont gérer la partie  
 stockage et enfin les ressources qui gèrent la configuration même du cluster.  
   
 * Ressources de **gestion d'applications** :
-  - **Pod** : exécute l'application dans un conteneur
+  - **Pod** : exécute l'application dans un conteneur. Si ils crash, alors le replicaSet va s'en rendre compte et provisionner un nouveau pod. Il ne va surtout pas restart le pod ayant crash. Une des Best practice niveau application est de set 1 container par pod, pour ne pas se perdre et pouvoir découper les services plus rapidement et facilement. Ensuite une application doit générélament être composée de 1 ou plusieurs pod avec 1 pod par service pour pouvoir effectuer un scaling horizontal des services indépendemment des autres.
   - **Deployment** : défini comment on va déployer le pod et comment on va controler celui-ci
   - **ReplicaSet** : défini l'ensemble de réplicas d'un pod. C'est avant tout un controller qui doit maintenir l'état d'un pod suivant ses specs.  
   - *Example* > Au final on va avoir un déploiement qui va lancer un ReplicaSet et qui va surveiller un   
@@ -104,7 +104,54 @@ ensemble de replicas d'un pod.
   - **Secret** : Gère les credentials nécessaires pour les applications
 * Ressources de **gestion du stockage** :  
   - **Persistent Volume (PV)** : Permet de créer des volumes qui sont extérieurs au container donc au pod, et qui ont un cycle de vie indépendant.  
-  - **Volume Claim** : Opération de demande de PV entre taille, utilisation etc...
+  - **Volume Claim** : Opération de demande de PV suivant des pré requis, taille, utilisation etc...
+* Ressources de **gestion de configuration du cluster** :  
+  - **Metadata** : ressource utilisée par le cluster sur les différents objets
+  - **Namespace** : permet de séparer les applications en vues logiques au sein du cluster
+  - **Roles** : permet de gérer les roles et les droits d'accès
+  
+## Manipuler les ressources Kubernetes  
+  
+Pour manipuler ces ressources, il faut les définir et donc passer par des fichiers YAML ou JSON. Ces fichiers  
+vont décrire les ressources sous forme de clés et de valeurs.  
+
+Par exemple au format YAML (le plus répandu) :  
+![nginx-pod-definition](assets/nginx-pod.png)  
+  
+* On peut voir différentes clés : 
+  - apiVersion : spécifie la version de l'api 
+  - kind :  définit le type de ressource
+  - metadata : permet d'ajouter des informations au niveau du cluster sur l'objet
+    - name : permet d'indiquer le nom que portera la ressource
+    - label : peut permettre par la suite de faire des sélections
+  - spec : spécifie comment créer le pod, comment le gérer etc..
+    - containers : liste les différents containers présent dans le Pod
+
+![nginx-pod-explaination](assets/nginx-pod-explaination.png)
+  
+## Déployer et installer un cluster Kubernetes  
+  
+* Il y a plusieurs types d'installation :  
+  - Installations orientées **développement et locales** :  
+    - [Minikube](https://github.com/kubernetes/minikube) > It implements local k8s cluster on Linux, Mac, Windows.  
+    - [Docker Destop](https://docs.docker.com/docker-for-windows/kubernetes/) > Allow us to provision a k8s single-node cluster.  
+    - [Microk8s](https://github.com/ubuntu/microk8s) > Run local, small & fast k8s cluster from a single-package.  
+    - [Kind](https://github.com/kubernetes-sigs/kind) > Run local k8s cluster using docker container as nodes.  
+    - [K3d](https://github.com/rancher/k3d) > Run local single-node k3s cluster using docker container as nodes.  
+  - Installations orientées **production et multi environnement** :  
+    - Installations hébergées de cluster multi-noeuds : (cluster managé par le service provider)
+      - EKS > Amazon Elastic Kubernetes Service  
+      - GKE > Google Kubernetes Engine
+      - AKS > Azure Kubernetes Service
+    - Installations on-premise de cluster multi-noeuds : (cluster managé par la team OPS)
+      - [Kubeadm](https://github.com/kubernetes/kubeadm) > Ligne de commande facilitant la création de noeuds Kubernetes et donc de cluster Kubernetes.  
+      - [Kubespray](https://github.com/kubernetes-sigs/kubespray) > Ensemble de configurations Ansible permettant de provisionner un cluster Kubernetes.  
+      - [RKE](https://rancher.com/docs/rke/latest/en/) > Rancher Kubernetes Engine. Permet à l'aide d'un installer de créer un cluster Kubernetes puis de le manager depuis la Rancher UI.  
+      - Docker enterprise Edition  
+ 
+## La Pratique ?  
+
+
 
 ## L'essentiel de Kubernetes
 
@@ -170,4 +217,13 @@ Ajouter un nouveau context depuis un autre fichier :
 `scp root@ip_master:/etc/kubernetes/admin.conf ~/.kube/`  
 `export KUBECONFIG=~/.kube/config:~/.kube/admin.conf`
 
+## Pour les motivés et ceux qui veulent aller plus loins dans Kubernetes 
 
+Voici un repository github listant tous les projets autour de Kubernetes qui peuvent nous intéresser. Ils sont  
+rangés par types de solution et par domaines. Vous y trouverez des liens pour des soltutions de **monitoring**,  
+de **Loging**, de **Networking** mais aussi des solutions pour déployer des **clusters Kubernetes** et **tutos**.  
+Vous trouverez aussi le CNCF landscape affichant toutes les solutions portées par la CNCF et donc ces solutions sont  
+compatibles avec l'éco-système Kubernetes pour la plupart.  
+  
+- [List of projects around Kubernetes](https://github.com/ramitsurana/awesome-kubernetes)
+- [CNCF landscape](https://landscape.cncf.io/)
