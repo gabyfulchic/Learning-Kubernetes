@@ -180,13 +180,50 @@ Ici le kube-dashboard & le kube-dns.
 Avant de passer aux actions spécifiques suivant le type de Noeud, on va d'abord effectuer les actions nécessaires  
 pour les 2 types de Noeud. En terme de pré-recquis il vous faudra aussi connaître la version de votre os, votre version de docker et il vous faudra renseigner les différents noeuds dans le `/etc/hosts` des serveurs.  
 
-Ensuite on devra :  
+**Liste des Pré-recquis pour les noeuds Kubernetes :**  
 - Désactiver SELINUX
+```bash
+setenforce 0
+sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+```
 - Ajouter le repository Kubernetes (pour apt/yum par exemple) 
-- Positionner la configuration du bridge (/etc/sysctl.d/k8s.conf)
-- Désactiver la Swap au niveau des serveurs
+```bash
+[[[ apt ]]]
+sudo apt-get update && sudo apt-get install -y apt-transport-https curl
+curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+deb https://apt.kubernetes.io/ kubernetes-xenial main
+EOF
+sudo apt-get update
   
-### Pré-requis d'un Noeud Master  
+[[[ yum ]]]  
+cat <<EOF > /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-$basearch
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+exclude=kubelet kubeadm kubectl
+EOF
+yum update-y
+```
+- Positionner la configuration du bridge si les noeuds sont sous un hyperviseur (/etc/sysctl.d/k8s.conf)
+```bash
+cat <<EOF > /etc/sysctl.d/k8s.conf
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+sysctl --system
+```
+- Désactiver la Swap au niveau des serveurs
+```bash
+swapoff -a
+sed -e '/swap/s/^/#/g' -i /etc/fstab
+```
+  
+### Pré-requis réseaux d'un Noeud Master  
   
 Ensuite il faudra mettre à jour les iptables du serveur afin d'ouvrir les ports nécessaires au bon fonctionnement  
 des différents composants d'un Noeud master.  
@@ -208,7 +245,7 @@ firewall-cmd --permanent --add-port={6443,2379,2380,10250,10251,10252,179,5473,4
 firewall-cmd --reload  
 ```  
   
-### Pré-requis d'un Noeud Worker  
+### Pré-requis réseaux d'un Noeud Worker  
 
 En terme de pré-recquis il vous faudra connaître la version de votre os, votre version de docker et il vous  
 faudra renseigner les différents noeuds dans le `/etc/hosts` du serveur. 
@@ -230,48 +267,72 @@ firewall-cmd --permanent --add-port={10250,30000-32767,179,5473,443}/tcp
 firewall-cmd --reload  
 ```  
 
-### Ajouter le serveur en tant que Noeud Kubernetes  
-
-#### Noeud Master  
+### Installation de kubeadm et téléchargements des images
   
 Kubeadm est une ligne de commande qui permet à l'aide des arguments `init` & `join` de créer rapidement et  
 simplement des clusters Kubernetes.  
   
-Pour installer `kubeadm` sous Ubuntu/Debian veuillez taper les commandes suivantes :  
-- `apt-get update && apt-get install -y apt-transport-https curl`
-- `curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -`
--
+Pour installer `kubeadm` sous Ubuntu/Debian veuillez taper la commande suivante :  
 ```bash
-cat <<EOF >/etc/apt/sources.list.d/kubernetes.list
-deb https://apt.kubernetes.io/ kubernetes-xenial main
-EOF
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl 
 ```
-- `apt-get update && apt-get install -y kubeadm`
 
-Puis `kubeadm config images pull` pour récupérer les images
-docker servant à provisionner dans pods les composants faisant fonctionner kubernetes.
-
-- l'apiserver
-- le scheduler
-- le controller manager
-- le kube proxy
+Pour installer `kubeadm` sous Centos/RHEL veuillez taper la commande suivante :  
+```bash
+yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`  
+systemctl enable --now kubelet
+```
+  
+Ensuite on va démarrer les services sur les workers & les masters :  
+```bash
+systemctl enable kubelet
+systemctl start kubelet
+```  
+  
+Après tout ces pré-recquis installés, il va falloir passer à l'installation concrête des noeuds et du cluster.  
+Tout d'abord on va récupérer les images des différents composants faisant fonctionner kubernetes depuis le master. 
+Cela permet aussi de vérifier votre connexion aux registres gcr.io. 
+  
+*Les composants :*  
+- apiserver
+- scheduler
+- ontroller manager
+- kube proxy
 - etcd
-- et coredns
+- coredns
+  
+### Installer le cluster avec kubeadm  
 
-Puis on check quel `CNI` (solution de gestion du réseau dans kube) on utilise avant d'initialiser  
-le cluster via la commande :  
-`kubeadm init --apiserver-advertise-address=X.X.X.X --pod-network-cidr=X.X.X.X/16` (pour le CNI calico)
+/!\  
+Avant toute chose, ce tutoriel ne s'applique que dans le cadre de l'installation d'un cluster Kubernetes  
+avec 1 seul Master.  
+Si jamais vous voulez installer un cluster Hautement Disponible avec plusieurs masters, vous devrez suivre  
+[cette documentation-ci.](https://kubernetes.io/fr/docs/setup/independent/high-availability/)  
+/!\  
+  
+Veuillez vous rendre en ssh sur votre futur noeud master Kubernetes. Assurez-vous aussi que vous pouvez vous connecter  
+en ssh sur tous vos futurs noeuds. Puis choisissez un add-on réseau pour les pods et vérifier si celui-ci nécessite  
+des arguments lors de l'initialisation du cluster.  
+  
+Si jamais vous n'arrivez pas à vous décider sur votre add-on réseau sur Kubernetes, consultez cette page :  
+- [https://kubernetes.io/docs/concepts/cluster-administration/addons/#networking-and-network-policy](https://kubernetes.io/docs/concepts/cluster-administration/addons/#networking-and-network-policy)  
+  
+Dans le cas du choix de l'add-on réseau [**Calico**](https://github.com/projectcalico/calico) :  
+- `kubeadm init --apiserver-advertise-address=X.X.X.X --pod-network-cidr=X.X.X.X/16`  
+  
+A la suite de cette commande, on va pouvoir récupérer le fichier admin.conf étant en fait votre  `~/.kube/config`.  
+Ce fichier sera donc la configuration de votre client kubernetes `kubectl`. Il pourra aussi vous servir à vous  
+connecter au dashboard Kubernetes dans le futur lorsque votre cluster sera opérationnel.  
 
-Ensuite on va devoir sur le master adapter le fichier de configuration de kubernetes pour utiliser la  
-commande `kubectl`. 
-- mkdir -p $HOME/.kube
-- sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-- sudo chown $(id -u):$(id -g) $HOME/.kube/config
+Ici il faut créer un utilisateur lambda présent dans les sudoers pour lancer ces commandes :    
+```bash
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+```  
 
-Maintenant on peut ajouter des pods dans le cluster kubernetes. Sachant qu'un pod est une entité managé  
-par kubernetes qui représente 1 ou plusieurs conteneurs. C'est la plus petites ressources kubernetes.  
-
-Donc on va pouvoir lancer le pod qui sera notre CNI et qui représentera la gestion du réseau au sein de  
+Maintenant que nous pouvons intéragir avec l'apisever  on va pouvoir lancer le pod qui sera notre CNI et qui représentera la gestion du réseau au sein de  
 notre cluster : `kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml`
 Pour vérifier que tout est ok : 
 - `kubectl get nodes`
