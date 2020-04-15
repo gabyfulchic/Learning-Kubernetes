@@ -1,6 +1,27 @@
 # Notes taken from LinkedIn Learning
 Les notes ont été prises depuis [le cours "L'essentiel de Kubernetes".](https://www.linkedin.com/learning/l-essentiel-de-kubernetes/configurer-le-cluster-on-premise?originalSubdomain=fr)
 
+## Table des matières  
+
+* Introduction aux conteneurs
+* Docker ? C'est quoi ?
+* Intro historique & commerciale de kubernetes
+* Intro fonctionnelle de kubernetes
+* Architecture générale de kubernetes
+* Les différents composants de Kubernetes  
+* Les ressources Kubernetes
+* Définir des ressources Kubernetes
+* Solutions pour déployer et installer un cluster Kubernetes 
+* La Pratique avec un cluster single-node locale 
+* La pratique avec un cluster on-premise
+  - Pré-requis réseaux d'un Noeud Master 
+  - Pré-requis réseaux d'un Noeud Worker
+  - Installation de kubeadm et télécharger les images
+  - Installer le cluster avec kubeadm 
+* Le "Context" Kubernetes
+* Le "Pod" Kubernetes 
+* Pour les motivés et ceux qui veulent aller plus loin dans Kubernetes  
+  
 ## Introduction aux conteneurs
 
 Arrivés avec l'ascenscion du dévelopement de micro-services, avec des cycles de mise en production court et  
@@ -110,7 +131,7 @@ ensemble de replicas d'un pod.
   - **Namespace** : permet de séparer les applications en vues logiques au sein du cluster
   - **Roles** : permet de gérer les roles et les droits d'accès
   
-## Manipuler les ressources Kubernetes  
+## Définir des ressources Kubernetes  
   
 Pour manipuler ces ressources, il faut les définir et donc passer par des fichiers YAML ou JSON. Ces fichiers  
 vont décrire les ressources sous forme de clés et de valeurs.  
@@ -129,7 +150,7 @@ Par exemple au format YAML (le plus répandu) :
 
 ![nginx-pod-explaination](assets/nginx-pod-explaination.png)
   
-## Déployer et installer un cluster Kubernetes  
+## Solutions pour déployer et installer un cluster Kubernetes  
   
 * Il y a plusieurs types d'installation :  
   - Installations orientées **développement et locales** :  
@@ -267,18 +288,18 @@ firewall-cmd --permanent --add-port={10250,30000-32767,179,5473,443}/tcp
 firewall-cmd --reload  
 ```  
 
-### Installation de kubeadm et téléchargements des images
+### Installation de kubeadm et télécharger les images
   
 Kubeadm est une ligne de commande qui permet à l'aide des arguments `init` & `join` de créer rapidement et  
 simplement des clusters Kubernetes.  
   
-Pour installer `kubeadm` sous Ubuntu/Debian veuillez taper la commande suivante :  
+Pour installer `kubeadm` sous **Ubuntu/Debian** veuillez taper la commande suivante :  
 ```bash
 sudo apt-get install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl 
 ```
 
-Pour installer `kubeadm` sous Centos/RHEL veuillez taper la commande suivante :  
+Pour installer `kubeadm` sous **Centos/RHEL** veuillez taper la commande suivante :  
 ```bash
 yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes`  
 systemctl enable --now kubelet
@@ -304,12 +325,12 @@ Cela permet aussi de vérifier votre connexion aux registres gcr.io.
   
 ### Installer le cluster avec kubeadm  
 
-/!\  
+/!\  /!\  /!\  
 Avant toute chose, ce tutoriel ne s'applique que dans le cadre de l'installation d'un cluster Kubernetes  
 avec 1 seul Master.  
 Si jamais vous voulez installer un cluster Hautement Disponible avec plusieurs masters, vous devrez suivre  
 [cette documentation-ci.](https://kubernetes.io/fr/docs/setup/independent/high-availability/)  
-/!\  
+/!\  /!\  /!\  
   
 Veuillez vous rendre en ssh sur votre futur noeud master Kubernetes. Assurez-vous aussi que vous pouvez vous connecter  
 en ssh sur tous vos futurs noeuds. Puis choisissez un add-on réseau pour les pods et vérifier si celui-ci nécessite  
@@ -332,50 +353,106 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 ```  
 
-Maintenant que nous pouvons intéragir avec l'apisever  on va pouvoir lancer le pod qui sera notre CNI et qui représentera la gestion du réseau au sein de  
-notre cluster : `kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml`
+Maintenant que nous pouvons intéragir avec le cluster Kubernetes à l'aide de la commande `kubectl`,  
+on va pouvoir déployer le pod qui se chargera se la gestion réseau du cluster.  
+Toujours dans le cadre de l'utilisation de calico :  
+`kubectl apply -f https://docs.projectcalico.org/v3.8/manifests/calico.yaml`   
+  
 Pour vérifier que tout est ok : 
-- `kubectl get nodes`
-- `kubectl get pods | grep calico`
+`kubectl get pods | grep calico`  
+  
+Ensuite, après avoir vérifié que le master est bien ready en tapant `kubectl get nodes`, on va rajouter le/les workers.  
+On aura juste besoin de taper une commande `kubeadm join` fournie en standard output de la commande `kubeadm init`  
+tapée au préalable. Rendez-vous sur le worker en ssh, et taper donc la commande.  
 
-Ensuite si on veut rajouter dans le cluster un worker on aura juste à taper la commande `kubeadm join` qui  
-nous a été donné en standard output lors de la création du master. Cela devra ressembler à quelque chose du  
-style : (sur le worker évidemment)    
+Voici un exemple de commande permettant à un worker de join le cluster :       
 `kubeadm join X.X.X.X(master):6443 --token XHHEGFJHZKDBCZDJH --discovery-token-ca-cert-hash sha256:rjkergç9EJEhffje9`
+  
+On verifie ensuite que le noeud est bien ajouté au cluster avec `kubectl get no`.   
+Si le "role" des noeuds worker est égal à `"<none>"`, c'est normal, cela signifie juste que ce sont des workers et pas  
+des masters.  
+  
+## Le "Context" Kubernetes
 
-On verifie avec `kubectl get no`  
+Le Context Kubernetes défini le cluster kubernetes ciblé, l'utilisateur avec ses certificats & le namespace par défaut  
+par exemple utilisés par le client kubectl.  
 
-## Le Contexte Kubernetes
-
-Le Context défini le cluster kubernetes cible, l'utilisateur pour se connecter au cluster avec  
-ses credentials et son namespace par défaut. 
-
-Lister les context disponible dans notre kubeconfig :  
+Lister les context disponible dans notre `~/.kube/config` :  
 `kubectl config get-contexts`  
 
-Par défaut pour que la commande sache quel context elle utilise un fichier à l'emplacement  
-~/.kube/config (sous Linux) mais on peut changer l'emplacement en manipulant la variable d'environnement  
+Par défaut, le client kubectl sait quel context utilisé grâce à un fichier à l'emplacement suivant  
+`~/.kube/config` (sous Linux) mais on peut changer l'emplacement en manipulant la variable d'environnement  
 $KUBECONFIG. On peut donc avoir plusieurs configurations et jongler avec elles en changeant l'emplacement.  
-On peut aussi spécifier à la ligne de commande `kubectl` l'argument `--kubeconfig`.  
-
-Pour changer de context :  
+On peut aussi spécifier à la ligne de commande `kubectl` l'argument `--kubeconfig` pour cibler un fichier spécifique.  
+  
+Pour **changer de context** :  
 `kubectl config use-context foo`
   
-Pour visualiser la configuration du context actuel :  
+Pour **afficher le context utilisé** :  
+`kubectl config current-context`  
+  
+Pour **supprimer un context** :  
+`kubectl config delete-context foo`  
+  
+Si vous voulez **remplir votre `~/.kube/config`** avec la configuration de votre nouveau cluster :  
+`scp root@ip_master:/etc/kubernetes/admin.conf ~/.kube/config`  
+  
+Si vous voulez **ajouter votre nouveau context** pour votre nouveau cluster **sans supprimer votre `~/.kube/config`** :  
+`scp root@ip_master:/etc/kubernetes/admin.conf ~/.kube/`  
+`export KUBECONFIG=~/.kube/config:~/.kube/admin.conf`  
+  
+Pour **visualiser la configuration de votre kubeconfig** (clusters, users, contexts...) :  
 `kubectl config view`  
   
-Pour supprimer un context :  
-`kubectl config delete-context foo`  
+## Le "Pod" Kubernetes  
 
-Ajouter un nouveau context depuis un autre fichier :  
-`scp root@ip_master:/etc/kubernetes/admin.conf ~/.kube/`  
-`export KUBECONFIG=~/.kube/config:~/.kube/admin.conf`
+Le "Pod" est plus petit entité gérée par Kubernetes, elle permet représente 1 ou plusieurs conteneurs.  
+De ce fait, pour lancer votre premier service conteneurisé sur votre cluster, vous allez devoir développé ce  
+"Pod" sous le format YAML. (ou Json mais beaucoup moins répandu)  
 
+Voici un exemple avec un conteneur nginx : [nginx-pod.yaml.](ressources/nginx-pod.yaml)  
+Et un autre exemple avec plusieurs conteneurs dans le même pod : [multi-containers-pod](ressources/multi-containers-pod.yaml)  
+  
+Pour information, vous me verrez souvent utiliser le mot "po", c'est en fait l'abréviation/le raccourci de pods  
+utilisé avec la ligne de commande kubectl.  
+  
+Pour le déployer le pod sur le cluster et dans le namespace "default", vous taperez la commande :  
+`kubectl apply -f ressources/nginx-pod.yaml -n default`  
+  
+Ensuite vous pourrez afficher tous les pods présents sur votre cluster sur le namespace default :  
+`kubectl get po -n default`  
+  
+Si vous voulez décrire le pod et afficher sa configuration au format yaml :  
+`kubectl get po/web -n default -o yaml`   
+OU  
+`kubectl describe po/web -n default`  
+
+Pour savoir sur quel worker les pods sont-ils schédulés :  
+`kubectl get po -o wide` 
+
+Lorsque le pod rentre dans un état d'error ou crashLoopBackoff, vous pouvez afficher la standard output du processus  
+principal du/des containers présent dans le pod :  
+`kubectl logs po/web`  
+`kubectl logs po/web-db redis && kubectl logs po/web-db nginx`  
+  
+Voici à quoi vous pouvez vous attendre :  
+![manipulate-pod-nginx](assets/manipulate-pod-nginx.png)  
+
+Pour vous assurer que votre pod expose bien comme il faut son service, seulement dans le cadre du test,  
+vous pourrez forward le port d'un container vers votre localhost :  
+`kubectl port-forward web 8000:80`  
+  
+Les pods Kubernetes sont lancés en mode "detach", si on veut se rattacher au pod pour se retrouver avec sa  
+standard output :  
+`kubectl attach po/web`  
+  
 ## Pour les motivés et ceux qui veulent aller plus loin dans Kubernetes 
 
-Voici un repository github listant tous les projets autour de Kubernetes qui peuvent nous intéresser. Ils sont  
+Pour les gens qui commencent à trouver dans Kubernetes une solution pour leurs micro-services et pour orechestrer  
+le tout, voici un repository github listant tous les projets autour de Kubernetes qui peuvent nous intéresser. Ils sont  
 rangés par types de solution et par domaines. Vous y trouverez des liens pour des soltutions de **monitoring**,  
 de **Loging**, de **Networking** mais aussi des solutions pour déployer des **clusters Kubernetes** et **tutos**.  
+  
 Vous trouverez aussi le CNCF landscape affichant toutes les solutions portées par la CNCF et donc ces solutions sont  
 compatibles avec l'éco-système Kubernetes pour la plupart.  
   
