@@ -407,9 +407,36 @@ Pour **visualiser la configuration de votre kubeconfig** (clusters, users, conte
 ## Le "Pod" Kubernetes  
 
 Le "Pod" est plus petit entité gérée par Kubernetes, elle permet représente 1 ou plusieurs conteneurs.  
-De ce fait, pour lancer votre premier service conteneurisé sur votre cluster, vous allez devoir développé ce  
+C'est le kube-scheduler qui va selectionner le noeud sur lequel s'exécutera le pod. Mais on peut aussi  
+selectionner le noeud avec un nodeSelector ou une nodeAffinity.  
+  
+Le **nodeSelector**, spécifie une liste de paires clé-valeur. Pour que le pod puisse fonctionner sur un nœud,  
+celui-ci doit avoir chacune des paires clé-valeur indiquées dans ses labels (il peut aussi avoir des labels supplémentaires). L'usage le plus courant est celui d'une paire clé-valeur. On peut par exemple indiquer un  
+`disktype: ssd` afin que le scheduler favorise la création du pod en question sur noeud possédant ce label-ci.  
+Pour les **nodeAffinity**, c'est plus ou moins une extension du nodeSelector car il va nous permettre d'exprimer plus  
+de contraintes. Mais ça reste sur le même principe de correspondance avec les labels associés au noeud.  
+Il y a 2 types de nodeAffinity, `requiredDuringSchedulingIgnoredDuringExecution` & `preferredDuringSchedulingIgnoredDuringExecution`.  
+Respectivement les règles **hard** & **soft**. La partie `IgnoredDuringExecution` veut explicitiment dire que si  
+vous mettez à jour les labels sur vos noeuds, mais que les pods sont déjà schédulés sur ces noeuds, alors les pods  
+ne vont pas automatiquement être schédulés ailleurs. Il faudra les kills et les relancer car comme le nom l'indique,  
+les règles s'appliquent lors de l'exécution des pods. On pourra chainer les règles soft avec des poids dits `weight`.  
+Ils permettent de définir les priorités des règles `preferred`. (range 1-100)  
+Afin de pousser le vice plus loin, on va pouvoir jouer sur la partie **podAffinity** qui permettra d'écrire des  
+règles afin de regrouper des pods suivant des labels sur des zones précises/des noeuds précis. Il y a aussi une partie  
+**podAntiAffinity** qui permet de définir des selectors pour éviter de positionner certains pods dans la même zone  
+ou sur le même noeud par exemple.  
+  
+Pour voir des exemples de "labels", de "selector", de "nodeSelector", de "nodeAffinity" & "podAffinity |antiAffinity" :  
+- [labels](assets/labels-explaination.png)
+- [selector](assets/selector-explaination.png)
+- [nodeSelector](assets/nodeSelector-explaination.png)
+- [nodeAffinity](assets/nodeAffinity-explaination.png)
+- [podAffinity](assets/podAffinity-explaination.png)
+- [podAntiAffinity](assets/podAntiAffinity-explaination.png)
+  
+Pour lancer votre premier service conteneurisé sur votre cluster, vous allez devoir développé ce  
 "Pod" sous le format YAML. (ou Json mais beaucoup moins répandu)  
-
+  
 Voici un exemple avec un conteneur nginx : [nginx-pod.yaml.](ressources/nginx-pod.yaml)  
 Et un autre exemple avec plusieurs conteneurs dans le même pod : [multi-containers-pod](ressources/multi-containers-pod.yaml)  
   
@@ -429,7 +456,14 @@ OU
 
 Pour savoir sur quel worker les pods sont-ils schédulés :  
 `kubectl get po -o wide` 
+  
+Pour lancer un shell sur un pod à un seul container : 
+`kubectl exec -ti web sh`
 
+Pour lancer un shell sur un pod à multiple containers en spécifiant le container cible :  
+`kubectl apply -f ressources/multi-containers-pod.yaml`
+`kubectl exec -ti web-db -c redis sh`
+  
 Lorsque le pod rentre dans un état d'error ou crashLoopBackoff, vous pouvez afficher la standard output du processus  
 principal du/des containers présent dans le pod :  
 `kubectl logs po/web`  
@@ -442,9 +476,25 @@ Pour vous assurer que votre pod expose bien comme il faut son service, seulement
 vous pourrez forward le port d'un container vers votre localhost :  
 `kubectl port-forward web 8000:80`  
   
-Les pods Kubernetes sont lancés en mode "detach", si on veut se rattacher au pod pour se retrouver avec sa  
-standard output :  
+Les pods Kubernetes sont lancés en mode "detach", si on veut se rattacher au processus principal du pod pour se  
+retrouver avec la sortie standard du processus :    
 `kubectl attach po/web`  
+
+Pour vous forcer à manipuler des conteneurs au sein de pods, et voir comment ça se passe, veuillez exécuter  
+ces commandes : (le fichier ressource se trouve [ici](ressources/pods-communicating.yaml)) 
+```bash
+kubectl apply -f ressources/pods-communicating.yaml
+kubectl get po
+kubectl exec -ti web-2c -c inspect sh
+```  
+  
+Une fois dans le container, vous pouvez tester le réseau et l'autre conteneur présent dans le pod, car oui  
+plusieurs containers dans un même pod partage la stack stockage & réseau.  
+```bash
+ps -ef (vous verrez le process "sleep 3600")
+apk add curl
+curl localhost (et oui, les 2 containers portent donc le même localhost)
+```
   
 ## Pour les motivés et ceux qui veulent aller plus loin dans Kubernetes 
 
