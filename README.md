@@ -408,7 +408,7 @@ Pour **visualiser la configuration de votre kubeconfig** (clusters, users, conte
 
 Le "Pod" est plus petit entité gérée par Kubernetes, elle permet représente 1 ou plusieurs conteneurs.  
 C'est le kube-scheduler qui va selectionner le noeud sur lequel s'exécutera le pod. Mais on peut aussi  
-selectionner le noeud avec un nodeSelector ou une nodeAffinity.  
+selectionner le noeud avec diverses méthodes.  
   
 Le **nodeSelector**, spécifie une liste de paires clé-valeur. Pour que le pod puisse fonctionner sur un nœud,  
 celui-ci doit avoir chacune des paires clé-valeur indiquées dans ses labels (il peut aussi avoir des labels supplémentaires). L'usage le plus courant est celui d'une paire clé-valeur. On peut par exemple indiquer un  
@@ -426,7 +426,7 @@ règles afin de regrouper des pods suivant des labels sur des zones précises/de
 **podAntiAffinity** qui permet de définir des selectors pour éviter de positionner certains pods dans la même zone  
 ou sur le même noeud par exemple.  
   
-Pour voir des exemples de "labels", de "selector", de "nodeSelector", de "nodeAffinity" & "podAffinity |antiAffinity" :  
+Exemples de "labels", de "selector", de "nodeSelector", de "nodeAffinity" & "podAffinity |antiAffinity" :  
 - [labels](assets/labels-explaination.png)
 - [selector](assets/selector-explaination.png)
 - [nodeSelector](assets/nodeSelector-explaination.png)
@@ -491,11 +491,28 @@ kubectl exec -ti web-2c -c inspect sh
 Une fois dans le container, vous pouvez tester le réseau et l'autre conteneur présent dans le pod, car oui  
 plusieurs containers dans un même pod partage la stack stockage & réseau.  
 ```bash
-ps -ef (vous verrez le process "sleep 3600")
+ps -ef
 apk add curl
-curl localhost (et oui, les 2 containers portent donc le même localhost)
-```
+curl localhost  
+(et oui, les 2 containers portent le même localhost)
+```  
   
+Exemple de pod schédulé avec une **nodeAffinity** :  
+```bash
+kubectl label node dz-gabyf disktype=ssd
+kubectl describe node dz-gabyf |grep disktype
+kubectl apply -f resources/affinity-pod.yaml
+kubectl describe po/web-aff (partie "Events")
+```  
+  
+A la fin de la manipulation ci-dessus, vous pourrez supprimer le label sans impacter le pod :  
+`kubectl labl node dz-gabyf disktype-`  
+  
+Exemple de pod schédulé avec une **podAffinity** :  
+```bash
+
+```
+    
 ## Pour les motivés et ceux qui veulent aller plus loin dans Kubernetes 
 
 Pour les gens qui commencent à trouver dans Kubernetes une solution pour leurs micro-services et pour orechestrer  
